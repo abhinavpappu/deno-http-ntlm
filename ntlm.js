@@ -6,7 +6,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-var crypto = require('crypto');
+import { Des } from "https://deno.land/x/crypto@v0.10.0/des.ts";
+import { Ecb, Padding } from "https://deno.land/x/crypto/block-modes.ts";
+import { createHash } from "https://deno.land/std@0.92.0/hash/mod.ts";
 
 var flags = {
 	NTLM_NegotiateUnicode                :  0x00000001,
@@ -262,8 +264,8 @@ function create_LM_hashed_password_v1(password){
 
 	function encrypt(buf){
 		var key = insertZerosEvery7Bits(buf);
-		var des = crypto.createCipheriv('DES-ECB', key, '');
-		return des.update("KGS!@#$%"); // page 57 in [MS-NLMP]);
+		const des = new Ecb(Des, key, Padding.NONE);
+		return des.encrypt(new TextEncoder().encode("KGS!@#$%"));
 	}
 
 	var firstPartEncrypted = encrypt(firstPart);
@@ -354,7 +356,7 @@ function binaryArray2bytes(array){
 
 function create_NT_hashed_password_v1(password){
 	var buf = new Buffer(password, 'utf16le');
-	var md4 = crypto.createHash('md4');
+	const md4 = createHash('md4');
 	md4.update(buf);
 	return new Buffer(md4.digest());
 }
@@ -367,14 +369,14 @@ function calc_resp(password_hash, server_challenge){
 
     var resArray = [];
 
-    var des = crypto.createCipheriv('DES-ECB', insertZerosEvery7Bits(passHashPadded.slice(0,7)), '');
-    resArray.push( des.update(server_challenge.slice(0,8)) );
+    let des = new Ecb(Des, insertZerosEvery7Bits(passHashPadded.slice(0,7)), Padding.NONE);
+		resArray.push(des.encrypt(server_challenge.slice(0,8)));
 
-    des = crypto.createCipheriv('DES-ECB', insertZerosEvery7Bits(passHashPadded.slice(7,14)), '');
-    resArray.push( des.update(server_challenge.slice(0,8)) );
+    des = new Ecb(Des, insertZerosEvery7Bits(passHashPadded.slice(7,14)), Padding.NONE);
+    resArray.push(des.encrypt(server_challenge.slice(0,8)));
 
-    des = crypto.createCipheriv('DES-ECB', insertZerosEvery7Bits(passHashPadded.slice(14,21)), '');
-    resArray.push( des.update(server_challenge.slice(0,8)) );
+    des = new Ecb(Des, insertZerosEvery7Bits(passHashPadded.slice(14,21)), Padding.NONE);
+    resArray.push(des.encrypt(server_challenge.slice(0,8)));
 
    	return Buffer.concat(resArray);
 }
@@ -386,7 +388,7 @@ function ntlm2sr_calc_resp(responseKeyNT, serverChallenge, clientChallenge){
     clientChallenge.copy(lmChallengeResponse, 0, 0, clientChallenge.length);
 
     var buf = Buffer.concat([serverChallenge, clientChallenge]);
-    var md5 = crypto.createHash('md5');
+    var md5 = createHash('md5');
     md5.update(buf);
     var sess = md5.digest();
     var ntChallengeResponse = calc_resp(responseKeyNT, sess.slice(0,8));
