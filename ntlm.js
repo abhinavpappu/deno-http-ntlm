@@ -10,7 +10,7 @@ import { Des } from "https://deno.land/x/crypto@v0.10.0/des.ts";
 import { Ecb, Padding } from "https://deno.land/x/crypto/block-modes.ts";
 import { createHash } from "https://deno.land/std@0.92.0/hash/mod.ts";
 
-var flags = {
+const flags = {
 	NTLM_NegotiateUnicode                :  0x00000001,
 	NTLM_NegotiateOEM                    :  0x00000002,
 	NTLM_RequestTarget                   :  0x00000004,
@@ -44,7 +44,7 @@ var flags = {
 	NTLM_NegotiateKeyExchange            :  0x40000000,
 	NTLM_Negotiate56                     :  0x80000000
 };
-var typeflags = {
+const typeflags = {
 	NTLM_TYPE1_FLAGS : 	  flags.NTLM_NegotiateUnicode
 						+ flags.NTLM_NegotiateOEM
 						+ flags.NTLM_RequestTarget
@@ -69,18 +69,18 @@ var typeflags = {
 };
 
 function createType1Message(options){
-	var domain = escape(options.domain.toUpperCase());
-	var workstation = escape(options.workstation.toUpperCase());
-	var protocol = 'NTLMSSP\0';
+	const domain = escape(options.domain.toUpperCase());
+	const workstation = escape(options.workstation.toUpperCase());
+	const protocol = 'NTLMSSP\0';
 
-	var BODY_LENGTH = 40;
+	const BODY_LENGTH = 40;
 
-	var type1flags = typeflags.NTLM_TYPE1_FLAGS;
+	let type1flags = typeflags.NTLM_TYPE1_FLAGS;
 	if(!domain || domain === '')
 		type1flags = type1flags - flags.NTLM_NegotiateOemDomainSupplied;
 
-	var pos = 0;
-	var buf = new Buffer(BODY_LENGTH + domain.length + workstation.length);
+	let pos = 0;
+	const buf = new Buffer(BODY_LENGTH + domain.length + workstation.length);
 
 
 	buf.write(protocol, pos, protocol.length); pos += protocol.length; // protocol
@@ -113,15 +113,15 @@ function createType1Message(options){
 }
 
 function parseType2Message(rawmsg, callback){
-	var match = rawmsg.match(/NTLM (.+)?/);
+	const match = rawmsg.match(/NTLM (.+)?/);
 	if(!match || !match[1]) {
 		callback(new Error("Couldn't find NTLM in the message type2 comming from the server"));
 		return null;
 	}
 
-	var buf = new Buffer(match[1], 'base64');
+	const buf = new Buffer(match[1], 'base64');
 
-	var msg = {};
+	const msg = {};
 
 	msg.signature = buf.slice(0, 8);
 	msg.type = buf.readInt16LE(8);
@@ -150,24 +150,24 @@ function parseType2Message(rawmsg, callback){
 }
 
 function createType3Message(msg2, options){
-	var nonce = msg2.serverChallenge;
-	var username = options.username;
-	var password = options.password;
-	var lm_password = options.lm_password;
-	var nt_password = options.nt_password;
-	var negotiateFlags = msg2.negotiateFlags;
+	const nonce = msg2.serverChallenge;
+	const username = options.username;
+	const password = options.password;
+	const lm_password = options.lm_password;
+	const nt_password = options.nt_password;
+	const negotiateFlags = msg2.negotiateFlags;
 
-	var isUnicode = negotiateFlags & flags.NTLM_NegotiateUnicode;
-	var isNegotiateExtendedSecurity = negotiateFlags & flags.NTLM_NegotiateExtendedSecurity;
+	const isUnicode = negotiateFlags & flags.NTLM_NegotiateUnicode;
+	const isNegotiateExtendedSecurity = negotiateFlags & flags.NTLM_NegotiateExtendedSecurity;
 
-	var BODY_LENGTH = 72;
+	const BODY_LENGTH = 72;
 
-	var domainName = escape(options.domain.toUpperCase());
-	var workstation = escape(options.workstation.toUpperCase());
+	const domainName = escape(options.domain.toUpperCase());
+	const workstation = escape(options.workstation.toUpperCase());
 
-	var workstationBytes, domainNameBytes, usernameBytes, encryptedRandomSessionKeyBytes;
+	let workstationBytes, domainNameBytes, usernameBytes, encryptedRandomSessionKeyBytes;
 
-	var encryptedRandomSessionKey = "";
+	const encryptedRandomSessionKey = "";
 	if(isUnicode){
 		workstationBytes = new Buffer(workstation, 'utf16le');
 		domainNameBytes = new Buffer(domainName, 'utf16le');
@@ -180,25 +180,25 @@ function createType3Message(msg2, options){
 		encryptedRandomSessionKeyBytes = new Buffer(encryptedRandomSessionKey, 'ascii');
 	}
 
-	var lmChallengeResponse = calc_resp((lm_password!=null)?lm_password:create_LM_hashed_password_v1(password), nonce);
-	var ntChallengeResponse = calc_resp((nt_password!=null)?nt_password:create_NT_hashed_password_v1(password), nonce);
+	let lmChallengeResponse = calc_resp((lm_password!=null)?lm_password:create_LM_hashed_password_v1(password), nonce);
+	let ntChallengeResponse = calc_resp((nt_password!=null)?nt_password:create_NT_hashed_password_v1(password), nonce);
 
 	if(isNegotiateExtendedSecurity){
-		var pwhash = (nt_password!=null)?nt_password:create_NT_hashed_password_v1(password);
-	 	var clientChallenge = "";
-	 	for(var i=0; i < 8; i++){
+		const pwhash = (nt_password!=null)?nt_password:create_NT_hashed_password_v1(password);
+	 	let clientChallenge = "";
+	 	for(let i=0; i < 8; i++){
 	 		clientChallenge += String.fromCharCode( Math.floor(Math.random()*256) );
 	   	}
-	   	var clientChallengeBytes = new Buffer(clientChallenge, 'ascii');
-	    var challenges = ntlm2sr_calc_resp(pwhash, nonce, clientChallengeBytes);
+	   	const clientChallengeBytes = new Buffer(clientChallenge, 'ascii');
+	    const challenges = ntlm2sr_calc_resp(pwhash, nonce, clientChallengeBytes);
 	    lmChallengeResponse = challenges.lmChallengeResponse;
 	    ntChallengeResponse = challenges.ntChallengeResponse;
 	}
 
-	var signature = 'NTLMSSP\0';
+	const signature = 'NTLMSSP\0';
 
-	var pos = 0;
-	var buf = new Buffer(BODY_LENGTH + domainNameBytes.length + usernameBytes.length + workstationBytes.length + lmChallengeResponse.length + ntChallengeResponse.length + encryptedRandomSessionKeyBytes.length);
+	let pos = 0;
+	const buf = new Buffer(BODY_LENGTH + domainNameBytes.length + usernameBytes.length + workstationBytes.length + lmChallengeResponse.length + ntChallengeResponse.length + encryptedRandomSessionKeyBytes.length);
 
 	buf.write(signature, pos, signature.length); pos += signature.length;
 	buf.writeUInt32LE(3, pos); pos += 4;          // type 1
@@ -250,34 +250,34 @@ function createType3Message(msg2, options){
 function create_LM_hashed_password_v1(password){
 	// fix the password length to 14 bytes
 	password = password.toUpperCase();
-	var passwordBytes = new Buffer(password, 'ascii');
+	const passwordBytes = new Buffer(password, 'ascii');
 
-	var passwordBytesPadded = new Buffer(14);
+	const passwordBytesPadded = new Buffer(14);
 	passwordBytesPadded.fill("\0");
-	var sourceEnd = 14;
+	let sourceEnd = 14;
 	if(passwordBytes.length < 14) sourceEnd = passwordBytes.length;
 	passwordBytes.copy(passwordBytesPadded, 0, 0, sourceEnd);
 
 	// split into 2 parts of 7 bytes:
-	var firstPart = passwordBytesPadded.slice(0,7);
-	var secondPart = passwordBytesPadded.slice(7);
+	const firstPart = passwordBytesPadded.slice(0,7);
+	const secondPart = passwordBytesPadded.slice(7);
 
 	function encrypt(buf){
-		var key = insertZerosEvery7Bits(buf);
+		const key = insertZerosEvery7Bits(buf);
 		const des = new Ecb(Des, key, Padding.NONE);
 		return des.encrypt(new TextEncoder().encode("KGS!@#$%"));
 	}
 
-	var firstPartEncrypted = encrypt(firstPart);
-	var secondPartEncrypted = encrypt(secondPart);
+	const firstPartEncrypted = encrypt(firstPart);
+	const secondPartEncrypted = encrypt(secondPart);
 
 	return Buffer.concat([firstPartEncrypted, secondPartEncrypted]);
 }
 
 function insertZerosEvery7Bits(buf){
-	var binaryArray = bytes2binaryArray(buf);
-	var newBinaryArray = [];
-	for(var i=0; i<binaryArray.length; i++){
+	const binaryArray = bytes2binaryArray(buf);
+	const newBinaryArray = [];
+	for(let i=0; i<binaryArray.length; i++){
 		newBinaryArray.push(binaryArray[i]);
 
 		if((i+1)%7 === 0){
@@ -288,7 +288,7 @@ function insertZerosEvery7Bits(buf){
 }
 
 function bytes2binaryArray(buf){
-	var hex2binary = {
+	const hex2binary = {
 		0: [0,0,0,0],
 		1: [0,0,0,1],
 		2: [0,0,1,0],
@@ -307,17 +307,17 @@ function bytes2binaryArray(buf){
 		F: [1,1,1,1]
 	};
 
-	var hexString = buf.toString('hex').toUpperCase();
-	var array = [];
-	for(var i=0; i<hexString.length; i++){
-   		var hexchar = hexString.charAt(i);
+	const hexString = buf.toString('hex').toUpperCase();
+	let array = [];
+	for(let i=0; i<hexString.length; i++){
+   		const hexchar = hexString.charAt(i);
    		array = array.concat(hex2binary[hexchar]);
    	}
    	return array;
 }
 
 function binaryArray2bytes(array){
-	var binary2hex = {
+	const binary2hex = {
 		'0000': 0,
 		'0001': 1,
 		'0010': 2,
@@ -336,18 +336,18 @@ function binaryArray2bytes(array){
 		'1111': 'F'
 	};
 
- 	var bufArray = [];
+ 	const bufArray = [];
 
-	for(var i=0; i<array.length; i +=8 ){
+	for(let i=0; i<array.length; i +=8 ){
 		if((i+7) > array.length)
 			break;
 
-		var binString1 = '' + array[i] + '' + array[i+1] + '' + array[i+2] + '' + array[i+3];
-		var binString2 = '' + array[i+4] + '' + array[i+5] + '' + array[i+6] + '' + array[i+7];
-   		var hexchar1 = binary2hex[binString1];
-   		var hexchar2 = binary2hex[binString2];
+		const binString1 = '' + array[i] + '' + array[i+1] + '' + array[i+2] + '' + array[i+3];
+		const binString2 = '' + array[i+4] + '' + array[i+5] + '' + array[i+6] + '' + array[i+7];
+   		const hexchar1 = binary2hex[binString1];
+   		const hexchar2 = binary2hex[binString2];
 
-   		var buf = new Buffer(hexchar1 + '' + hexchar2, 'hex');
+   		const buf = new Buffer(hexchar1 + '' + hexchar2, 'hex');
    		bufArray.push(buf);
    	}
 
@@ -355,7 +355,7 @@ function binaryArray2bytes(array){
 }
 
 function create_NT_hashed_password_v1(password){
-	var buf = new Buffer(password, 'utf16le');
+	const buf = new Buffer(password, 'utf16le');
 	const md4 = createHash('md4');
 	md4.update(buf);
 	return new Buffer(md4.digest());
@@ -363,11 +363,11 @@ function create_NT_hashed_password_v1(password){
 
 function calc_resp(password_hash, server_challenge){
     // padding with zeros to make the hash 21 bytes long
-    var passHashPadded = new Buffer(21);
+    const passHashPadded = new Buffer(21);
     passHashPadded.fill("\0");
     password_hash.copy(passHashPadded, 0, 0, password_hash.length);
 
-    var resArray = [];
+    const resArray = [];
 
     let des = new Ecb(Des, insertZerosEvery7Bits(passHashPadded.slice(0,7)), Padding.NONE);
 		resArray.push(des.encrypt(server_challenge.slice(0,8)));
@@ -383,15 +383,15 @@ function calc_resp(password_hash, server_challenge){
 
 function ntlm2sr_calc_resp(responseKeyNT, serverChallenge, clientChallenge){
 	// padding with zeros to make the hash 16 bytes longer
-    var lmChallengeResponse = new Buffer(clientChallenge.length + 16);
+    const lmChallengeResponse = new Buffer(clientChallenge.length + 16);
     lmChallengeResponse.fill("\0");
     clientChallenge.copy(lmChallengeResponse, 0, 0, clientChallenge.length);
 
-    var buf = Buffer.concat([serverChallenge, clientChallenge]);
-    var md5 = createHash('md5');
+    const buf = Buffer.concat([serverChallenge, clientChallenge]);
+    const md5 = createHash('md5');
     md5.update(buf);
-    var sess = md5.digest();
-    var ntChallengeResponse = calc_resp(responseKeyNT, sess.slice(0,8));
+    const sess = md5.digest();
+    const ntChallengeResponse = calc_resp(responseKeyNT, sess.slice(0,8));
 
     return {
     	lmChallengeResponse: lmChallengeResponse,
