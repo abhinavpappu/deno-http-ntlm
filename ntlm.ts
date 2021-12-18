@@ -80,36 +80,38 @@ function createType1Message(options){
 		type1flags = type1flags - flags.NTLM_NegotiateOemDomainSupplied;
 
 	let pos = 0;
-	const buf = new Buffer(BODY_LENGTH + domain.length + workstation.length);
+	const arrayBuf = new ArrayBuffer(BODY_LENGTH + domain.length + workstation.length);
+	const dataView = new DataView(arrayBuf);
+	const buf = new Uint8Array(arrayBuf, 0, arrayBuf.byteLength);
+	const textEncoder = new TextEncoder();
 
+	buf.set(textEncoder.encode(protocol), pos); pos += protocol.length; // protocol
+	dataView.setUint32(pos, 1, true); pos += 4; // type 1
+	dataView.setUint32(pos, type1flags, true); pos += 4; // TYPE1 flag
 
-	buf.write(protocol, pos, protocol.length); pos += protocol.length; // protocol
-	buf.writeUInt32LE(1, pos); pos += 4;          // type 1
-	buf.writeUInt32LE(type1flags, pos); pos += 4; // TYPE1 flag
+	dataView.setUint16(pos, domain.length, true); pos += 2; // domain length
+	dataView.setUint16(pos, domain.length, true); pos += 2; // domain max length
+	dataView.setUint32(pos, BODY_LENGTH + workstation.length, true); pos += 4; // domain buffer offset
 
-	buf.writeUInt16LE(domain.length, pos); pos += 2; // domain length
-	buf.writeUInt16LE(domain.length, pos); pos += 2; // domain max length
-	buf.writeUInt32LE(BODY_LENGTH + workstation.length, pos); pos += 4; // domain buffer offset
+	dataView.setUint16(pos, workstation.length, true); pos += 2; // workstation length
+	dataView.setUint16(pos, workstation.length, true); pos += 2; // workstation max length
+	dataView.setUint32(pos, BODY_LENGTH, true); pos += 4; // workstation buffer offset
 
-	buf.writeUInt16LE(workstation.length, pos); pos += 2; // workstation length
-	buf.writeUInt16LE(workstation.length, pos); pos += 2; // workstation max length
-	buf.writeUInt32LE(BODY_LENGTH, pos); pos += 4; // workstation buffer offset
+	dataView.setUint8(pos, 5); pos += 1; // ProductMajorVersion
+	dataView.setUint8(pos, 1); pos += 1; // ProductMinorVersion
+	dataView.setUint16(pos, 2600, true); pos += 2; // ProductBuild
 
-	buf.writeUInt8(5, pos); pos += 1;      //ProductMajorVersion
-	buf.writeUInt8(1, pos); pos += 1;      //ProductMinorVersion
-	buf.writeUInt16LE(2600, pos); pos += 2; //ProductBuild
-
-	buf.writeUInt8(0 , pos); pos += 1; //VersionReserved1
-	buf.writeUInt8(0 , pos); pos += 1; //VersionReserved2
-	buf.writeUInt8(0 , pos); pos += 1; //VersionReserved3
-	buf.writeUInt8(15, pos); pos += 1; //NTLMRevisionCurrent
+	dataView.setUint8(pos, 0); pos += 1; // VersionReserved1
+	dataView.setUint8(pos, 0); pos += 1; // VersionReserved2
+	dataView.setUint8(pos, 0); pos += 1; // VersionReserved3
+	dataView.setUint8(pos, 15); pos += 1; // NTLMRevisionCurrent
 
 
 	// length checks is to fix issue #46 and possibly #57
-	if(workstation.length !=0) buf.write(workstation, pos, workstation.length, 'ascii'); pos += workstation.length; // workstation string
-	if(domain.length !=0)      buf.write(domain     , pos, domain.length     , 'ascii'); pos += domain.length; // domain string
+	if(workstation.length !=0) 	buf.set(textEncoder.encode(workstation), pos); pos += workstation.length; // workstation string
+	if(domain.length !=0) buf.set(textEncoder.encode(domain), pos); pos += domain.length; // domain string
 
-	return 'NTLM ' + buf.toString('base64');
+	return 'NTLM ' + btoa(String.fromCharCode(...buf)); // base64 encode
 }
 
 function parseType2Message(rawmsg, callback){
