@@ -69,7 +69,12 @@ const typeflags = {
 						+ flags.NTLM_Negotiate56
 };
 
-function createType1Message(options){
+export type Type1MessageOptions = {
+	domain: string,
+	workstation: string,
+}
+
+function createType1Message(options: Type1MessageOptions){
 	const domain = escape(options.domain.toUpperCase());
 	const workstation = escape(options.workstation.toUpperCase());
 	const protocol = 'NTLMSSP\0';
@@ -112,7 +117,23 @@ function createType1Message(options){
 	return 'NTLM ' + buf.toString('base64');
 }
 
-function parseType2Message(rawmsg, callback){
+export type Type2Message = {
+	signature: Buffer,
+	type: number,
+	targetNameLen: number,
+	targetNameMaxLen: number,
+	targetNameOffset: number,
+	targetName: Buffer,
+	negotiateFlags: number,
+	serverChallenge: Buffer,
+	reserved: Buffer,
+	targetInfoLen: number,
+	targetInfoMaxLen: number,
+	targetInfoOffset: number,
+	targetInfo: Buffer,
+};
+
+function parseType2Message(rawmsg: string, callback: (err: Error) => void){
 	const match = rawmsg.match(/NTLM (.+)?/);
 	if(!match || !match[1]) {
 		callback(new Error("Couldn't find NTLM in the message type2 comming from the server"));
@@ -121,7 +142,7 @@ function parseType2Message(rawmsg, callback){
 
 	const buf = new Buffer(match[1], 'base64');
 
-	const msg = {};
+	const msg = {} as Type2Message;
 
 	msg.signature = buf.slice(0, 8);
 	msg.type = buf.readInt16LE(8);
@@ -149,7 +170,16 @@ function parseType2Message(rawmsg, callback){
 	return msg;
 }
 
-function createType3Message(msg2, options){
+export type Type3MessageOptions = {
+	username: string,
+	password: string,
+	domain: string,
+	workstation: string,
+	lm_password: Buffer,
+	nt_password: Buffer,
+};
+
+function createType3Message(msg2: Type2Message, options: Type3MessageOptions){
 	const nonce = msg2.serverChallenge;
 	const username = options.username;
 	const password = options.password;
@@ -247,7 +277,7 @@ function createType3Message(msg2, options){
 	return 'NTLM ' + buf.toString('base64');
 }
 
-function create_LM_hashed_password_v1(password){
+function create_LM_hashed_password_v1(password: string){
 	// fix the password length to 14 bytes
 	password = password.toUpperCase();
 	const passwordBytes = new Buffer(password, 'ascii');
@@ -262,7 +292,7 @@ function create_LM_hashed_password_v1(password){
 	const firstPart = passwordBytesPadded.slice(0,7);
 	const secondPart = passwordBytesPadded.slice(7);
 
-	function encrypt(buf){
+	function encrypt(buf: Buffer){
 		const key = insertZerosEvery7Bits(buf);
 		const des = new Ecb(Des, key, Padding.NONE);
 		return des.encrypt(new TextEncoder().encode("KGS!@#$%"));
@@ -274,9 +304,12 @@ function create_LM_hashed_password_v1(password){
 	return Buffer.concat([firstPartEncrypted, secondPartEncrypted]);
 }
 
-function insertZerosEvery7Bits(buf){
+type HexCharacter = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+type Bit = 0 | 1;
+
+function insertZerosEvery7Bits(buf: Buffer){
 	const binaryArray = bytes2binaryArray(buf);
-	const newBinaryArray = [];
+	const newBinaryArray: Bit[] = [];
 	for(let i=0; i<binaryArray.length; i++){
 		newBinaryArray.push(binaryArray[i]);
 
@@ -287,8 +320,8 @@ function insertZerosEvery7Bits(buf){
 	return binaryArray2bytes(newBinaryArray);
 }
 
-function bytes2binaryArray(buf){
-	const hex2binary = {
+function bytes2binaryArray(buf: Buffer){
+	const hex2binary: Record<HexCharacter, [Bit, Bit, Bit, Bit]> = {
 		0: [0,0,0,0],
 		1: [0,0,0,1],
 		2: [0,0,1,0],
@@ -308,26 +341,26 @@ function bytes2binaryArray(buf){
 	};
 
 	const hexString = buf.toString('hex').toUpperCase();
-	let array = [];
+	let array: Bit[] = [];
 	for(let i=0; i<hexString.length; i++){
-   		const hexchar = hexString.charAt(i);
+   		const hexchar = hexString.charAt(i) as HexCharacter;
    		array = array.concat(hex2binary[hexchar]);
    	}
    	return array;
 }
 
-function binaryArray2bytes(array){
-	const binary2hex = {
-		'0000': 0,
-		'0001': 1,
-		'0010': 2,
-		'0011': 3,
-		'0100': 4,
-		'0101': 5,
-		'0110': 6,
-		'0111': 7,
-		'1000': 8,
-		'1001': 9,
+function binaryArray2bytes(array: Bit[]){
+	const binary2hex: Record<string, HexCharacter> = {
+		'0000': '0',
+		'0001': '1',
+		'0010': '2',
+		'0011': '3',
+		'0100': '4',
+		'0101': '5',
+		'0110': '6',
+		'0111': '7',
+		'1000': '8',
+		'1001': '9',
 		'1010': 'A',
 		'1011': 'B',
 		'1100': 'C',
@@ -354,14 +387,14 @@ function binaryArray2bytes(array){
    	return Buffer.concat(bufArray);
 }
 
-function create_NT_hashed_password_v1(password){
+function create_NT_hashed_password_v1(password: string){
 	const buf = new Buffer(password, 'utf16le');
 	const md4 = createHash('md4');
 	md4.update(buf);
 	return new Buffer(md4.digest());
 }
 
-function calc_resp(password_hash, server_challenge){
+function calc_resp(password_hash: Buffer, server_challenge: Uint8Array){
     // padding with zeros to make the hash 21 bytes long
     const passHashPadded = new Buffer(21);
     passHashPadded.fill("\0");
@@ -381,7 +414,7 @@ function calc_resp(password_hash, server_challenge){
    	return Buffer.concat(resArray);
 }
 
-function ntlm2sr_calc_resp(responseKeyNT, serverChallenge, clientChallenge){
+function ntlm2sr_calc_resp(responseKeyNT: Buffer, serverChallenge: Buffer, clientChallenge: Buffer){
 	// padding with zeros to make the hash 16 bytes longer
     const lmChallengeResponse = new Buffer(clientChallenge.length + 16);
     lmChallengeResponse.fill("\0");
@@ -391,7 +424,7 @@ function ntlm2sr_calc_resp(responseKeyNT, serverChallenge, clientChallenge){
     const md5 = createHash('md5');
     md5.update(buf);
     const sess = md5.digest();
-    const ntChallengeResponse = calc_resp(responseKeyNT, sess.slice(0,8));
+    const ntChallengeResponse = calc_resp(responseKeyNT, new Uint8Array(sess.slice(0,8)));
 
     return {
     	lmChallengeResponse: lmChallengeResponse,
@@ -399,12 +432,10 @@ function ntlm2sr_calc_resp(responseKeyNT, serverChallenge, clientChallenge){
     };
 }
 
-exports.createType1Message = createType1Message;
-exports.parseType2Message = parseType2Message;
-exports.createType3Message = createType3Message;
-exports.create_NT_hashed_password = create_NT_hashed_password_v1;
-exports.create_LM_hashed_password = create_LM_hashed_password_v1;
-
-
-
-
+export {
+	createType1Message,
+	parseType2Message,
+	createType3Message,
+	create_NT_hashed_password_v1,
+	create_LM_hashed_password_v1,
+};
