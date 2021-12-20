@@ -8,27 +8,28 @@
 
 'use strict';
 
-var url = require('url');
-var httpreq = require('httpreq');
-var ntlm = require('./ntlm');
-var _ = require('underscore');
-var http = require('http');
-var https = require('https');
+import * as ntlm from './ntlm.ts';
+
+const url = require('url');
+const httpreq = require('httpreq');
+const _ = require('underscore');
+const http = require('http');
+const https = require('https');
 
 exports.method = function(method, options, finalCallback){
 	if(!options.workstation) options.workstation = '';
 	if(!options.domain) options.domain = '';
 
 	// extract non-ntlm-options:
-	var httpreqOptions = _.omit(options, 'url', 'username', 'password', 'workstation', 'domain');
+	const httpreqOptions = _.omit(options, 'url', 'username', 'password', 'workstation', 'domain');
 
 	// is https?
-	var isHttps = false;
-	var reqUrl = url.parse(options.url);
+	let isHttps = false;
+	const reqUrl = url.parse(options.url);
 	if(reqUrl.protocol == 'https:') isHttps = true;
 
 	// set keepaliveAgent (http or https):
-	var keepaliveAgent;
+	let keepaliveAgent;
 
 	if(isHttps){
 		keepaliveAgent = new https.Agent({keepAlive: true});
@@ -39,9 +40,9 @@ exports.method = function(method, options, finalCallback){
 	// build type1 request:
 
 	function sendType1Message (callback) {
-		var type1msg = ntlm.createType1Message(options);
+		const type1msg = ntlm.createType1Message(options);
 
-		var type1options = {
+		let type1options = {
 			headers:{
 				'Connection' : 'keep-alive',
 				'Authorization': type1msg
@@ -70,14 +71,14 @@ exports.method = function(method, options, finalCallback){
 			return callback(new Error('www-authenticate not found on response of second request'));
 
 		// parse type2 message from server:
-		var type2msg = ntlm.parseType2Message(res.headers['www-authenticate'], callback); //callback only happens on errors
+		const type2msg = ntlm.parseType2Message(res.headers['www-authenticate'], callback); //callback only happens on errors
 		if(!type2msg) return; // if callback returned an error, the parse-function returns with null
 
 		// create type3 message:
-		var type3msg = ntlm.createType3Message(type2msg, options);
+		const type3msg = ntlm.createType3Message(type2msg, options);
 
 		// build type3 request:
-		var type3options = {
+		let type3options = {
 			headers: {
 				'Connection': 'Close',
 				'Authorization': type3msg
