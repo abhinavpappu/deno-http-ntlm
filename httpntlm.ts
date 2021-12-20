@@ -16,7 +16,7 @@ const _ = require('underscore');
 const http = require('http');
 const https = require('https');
 
-exports.method = function(method, options, finalCallback){
+function request(method, options, finalCallback){
 	if(!options.workstation) options.workstation = '';
 	if(!options.domain) options.domain = '';
 
@@ -105,9 +105,12 @@ exports.method = function(method, options, finalCallback){
 
 };
 
-['get', 'put', 'patch', 'post', 'delete', 'options'].forEach(function(method){
-	exports[method] = exports.method.bind(exports, method);
+const methods = ['get', 'put', 'patch', 'post', 'delete', 'options'];
+const exportRequests = {};
+methods.forEach((method) => {
+	exportRequests[method] = (...args) => request(method, ...args);
 });
 
-exports.ntlm = ntlm; //if you want to use the NTML functions yourself
-
+export default request;
+export { ntlm };
+export const { get, put, patch, post, delete: del, options } = exportRequests;
