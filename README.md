@@ -1,4 +1,6 @@
-# httpntlm
+# deno-httpntlm
+
+__deno-httpntlm__ is a fork of [__httpntlm__](https://github.com/SamDecrock/node-http-ntlm) with the goal of making httpntlm compatible with Deno. However, I ended up not needing this anymore, so the conversion is currently unfinished. `ntlm.js` (now `ntlm.ts`) should now be fully compatible with Deno, but `httpntml.ts` still needs a little more work.
 
 __httpntlm__ is a Node.js library to do HTTP NTLM authentication
 

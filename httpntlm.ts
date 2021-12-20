@@ -10,7 +10,7 @@
 
 import * as ntlm from './ntlm.ts';
 
-const url = require('url');
+import { urlParse } from 'https://deno.land/x/url_parse/mod.ts';
 const httpreq = require('httpreq');
 const _ = require('underscore');
 const http = require('http');
@@ -25,7 +25,7 @@ function request(method, options, finalCallback){
 
 	// is https?
 	let isHttps = false;
-	const reqUrl = url.parse(options.url);
+	const reqUrl = urlParse(options.url);
 	if(reqUrl.protocol == 'https:') isHttps = true;
 
 	// set keepaliveAgent (http or https):
